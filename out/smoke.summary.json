@@ -1,0 +1,23 @@
+{
+  "startedAt": "2026-08-17T05:18:11.601Z",
+  "finishedAt": "2026-08-17T05:18:31.309Z",
+  "elapsed": "20s",
+  "tiles": {
+    "total": 1,
+    "done": 1,
+    "failed": 0
+  },
+  "records": {
+    "collected": 485,
+    "exported": 485,
+    "withCoords": 485
+  },
+  "bySource": {
+    "osm_overpass": 485
+  },
+  "byPattern": {
+    "Viettel": 1
+  },
+  "bssid": null,
+  "partial": false
+}

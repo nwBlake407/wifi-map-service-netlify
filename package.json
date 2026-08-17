@@ -1,0 +1,26 @@
+{
+  "name": "vn-wifi-collector",
+  "version": "1.0.0",
+  "description": "Collect public Wi-Fi / internet-access POIs in Vietnam from OpenStreetMap (Overpass), with optional keyless BSSID geolocation enrichment.",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "vn-wifi-collect": "./collect-wifi.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node collect-wifi.mjs",
+    "smoke": "node collect-wifi.mjs --bbox 10.75,106.65,10.80,106.70 --tile-size 0.05 --sample-tiles 1 -o out/smoke.csv -v"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "pg": "^8.23.0",
+    "pino": "^9.4.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.3.0"
+  }
+}

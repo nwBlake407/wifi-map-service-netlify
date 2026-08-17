@@ -20,6 +20,7 @@
  *     amenity       text,
  *     wifi          text,
  *     operator      text,
+ *     isp           text,          -- specific Vietnamese ISP ('Viettel', 'VNPT', … 'Unknown')
  *     lat           double precision,
  *     lon           double precision,
  *     vendor        text,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS wifi_points (
   amenity text,
   wifi text,
   operator text,
+  isp text,
   lat double precision,
   lon double precision,
   vendor text,
@@ -69,7 +71,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS wifi_points_dedup_idx
   ON wifi_points (osm_type, osm_id);
 CREATE INDEX IF NOT EXISTS wifi_points_geo_idx ON wifi_points (lat, lon);
 CREATE INDEX IF NOT EXISTS wifi_points_bssid_idx ON wifi_points (bssid);
-`;
+ALTER TABLE wifi_points ADD COLUMN IF NOT EXISTS isp text;`;
 
 /** Strip UTF-8 BOM if present. */
 function stripBom(s) {

@@ -99,6 +99,22 @@ const BACKOFF_BASE_MS = 3_000;
 const BACKOFF_MAX_MS = 60_000;
 
 /**
+ * Specific Vietnamese internet service providers. Each record is matched
+ * against these and carries the result in a dedicated `isp` field
+ * ('Unknown' when nothing matches).
+ */
+const VN_ISPS = [
+  { label: 'Viettel', re: /viettel/i },
+  { label: 'VNPT', re: /vnpt|vinaphone/i },
+  { label: 'FPT', re: /\bfpt\b/i },
+  { label: 'CMC', re: /\bcmc\b|cmc\s*telecom/i },
+  { label: 'SCTV', re: /sctv/i },
+  { label: 'NetNam', re: /netnam/i },
+  { label: 'MobiFone', re: /mobifone|mobi\s?fone/i },
+  { label: 'Vietnamese Government Free WiFi', re: /free\s*wi[\s-]?fi|wi[\s-]?fi\s*(miễn\s*phí|mien\s*phi)/i },
+];
+
+/**
  * Vietnam ISP / public-WiFi brand patterns used for post-filtering and
  * enrichment. Matched against name, ssid, operator and the raw tag JSON.
  */
@@ -134,7 +150,7 @@ const BUILTIN_OUI = {
 
 const CSV_COLUMNS = [
   'osm_id', 'osm_type', 'name', 'ssid_hint', 'internet_access', 'amenity',
-  'wifi', 'operator', 'lat', 'lon', 'vendor', 'bssid', 'country', 'region',
+  'wifi', 'operator', 'isp', 'lat', 'lon', 'vendor', 'bssid', 'country', 'region',
   'first_seen', 'last_seen', 'matched_patterns', 'source', 'tags',
 ];
 
@@ -165,6 +181,7 @@ const CSV_COLUMNS = [
  * @property {string} name @property {string} ssid_hint
  * @property {string} internet_access @property {string} amenity @property {string} wifi
  * @property {string} operator
+ * @property {string} isp specific Vietnamese ISP ('Viettel', 'VNPT', … or 'Unknown')
  * @property {number|string} lat @property {number|string} lon
  * @property {string} vendor @property {string} bssid
  * @property {string} country @property {string} region
@@ -588,6 +605,12 @@ function matchPatterns(haystack) {
   return VN_WIFI_PATTERNS.filter((p) => p.re.test(haystack)).map((p) => p.label);
 }
 
+/** Detect the specific Vietnamese ISP for a record ('Unknown' when no match). */
+function detectIsp(haystack) {
+  if (haystack) for (const p of VN_ISPS) if (p.re.test(haystack)) return p.label;
+  return 'Unknown';
+}
+
 /**
  * Map an Overpass element to a WifiRecord (null when it has no usable coords).
  * @param {OverpassElement} el @param {RunContext} ctx
@@ -615,6 +638,7 @@ function elementToRecord(el, ctx) {
     amenity: tags.amenity || '',
     wifi: tags.wifi || '',
     operator,
+    isp: detectIsp(haystack),
     lat,
     lon,
     vendor: '', // OSM carries no MAC-level data
@@ -838,7 +862,7 @@ async function writeSqliteExport(file, rows, log) {
   const db = new Database(file);
   db.exec(`CREATE TABLE IF NOT EXISTS wifi_points (
     id TEXT PRIMARY KEY, osm_id TEXT, osm_type TEXT, name TEXT, ssid_hint TEXT,
-    internet_access TEXT, amenity TEXT, wifi TEXT, operator TEXT,
+    internet_access TEXT, amenity TEXT, wifi TEXT, operator TEXT, isp TEXT,
     lat REAL, lon REAL, vendor TEXT, bssid TEXT, country TEXT, region TEXT,
     first_seen TEXT, last_seen TEXT, matched_patterns TEXT, source TEXT, tags TEXT)`);
   const cols = CSV_COLUMNS;
@@ -970,6 +994,7 @@ async function main() {
         rec = {
           id: `bssid/${macHex}`, osm_type: '', osm_id: '', name: '', ssid_hint: '',
           internet_access: '', amenity: '', wifi: '', operator: '',
+          isp: 'Unknown',
           lat: loc ? loc.lat : '', lon: loc ? loc.lon : '',
           vendor: resolveVendor(macHex), bssid: macDisplay(macHex),
           country: loc ? defaultCountryFor(loc.lat, loc.lon, ctx.bboxIsDefault) : 'VN',
@@ -1011,6 +1036,8 @@ async function main() {
   for (const r of rows) bySource[r.source] = (bySource[r.source] || 0) + 1;
   const byPattern = {};
   for (const r of rows) for (const p of r.matched_patterns) byPattern[p] = (byPattern[p] || 0) + 1;
+  const byIsp = {};
+  for (const r of rows) byIsp[r.isp || 'Unknown'] = (byIsp[r.isp || 'Unknown'] || 0) + 1;
   const stats = {
     startedAt,
     finishedAt: new Date().toISOString(),
@@ -1019,6 +1046,7 @@ async function main() {
     records: { collected: records.size, exported: rows.length, withCoords: rows.filter((r) => r.lat !== '').length },
     bySource,
     byPattern,
+    byIsp,
     bssid: bssidStats,
     partial: interrupted || state.failedTiles.size > 0,
   };
